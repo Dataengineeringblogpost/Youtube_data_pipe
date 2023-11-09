@@ -50,7 +50,7 @@ class FullLoadDataToS3():
             print("Dump RAW_Data to S3 Results:- ",str(Results[0]))
             
             print("Ending Script 1")
-            return Results[1]
+            return [Results[1],len(Data)]
         except Exception as e:
 
             print("Error in Script 1 :" ,str(e))
