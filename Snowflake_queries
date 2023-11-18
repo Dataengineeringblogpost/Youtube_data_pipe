@@ -1,0 +1,77 @@
+-- Step 2: - Creating a Snowflake database and Schema
+-- Create a Snowflake database named 'snowpipe_aws' if it doesn't already exist.
+CREATE DATABASE IF NOT EXISTS snowpipe_aws;
+
+-- Switch the active database to 'snowpipe_aws'
+use database snowpipe_aws;
+
+-- Create a schema named 'file_formats','external_stages' within the 'snowpipe_aws' database
+CREATE SCHEMA IF NOT EXISTS snowpipe_aws.file_formats;
+CREATE SCHEMA IF NOT EXISTS snowpipe_aws.external_stages;
+
+
+-- Step 3: - Creating a Snowflake storage integration
+//S3 INTEGRATION 
+CREATE or replace STORAGE INTEGRATION t_series_table_data
+TYPE = EXTERNAL_STAGE
+STORAGE_PROVIDER = S3
+ENABLED = TRUE
+STORAGE_AWS_ROLE_ARN = '<Paste the arn here>'
+STORAGE_ALLOWED_LOCATIONS = ('s3://snowpipebucket2521');
+
+//Describe the S3 INTEGRATION Code to copy the STORAGE_AWS_IAM_USER_ARN value and paste it in AWS role
+DESC INTEGRATION t_series_table_data;
+-- STEP 4 :- Defining the {JSON} file format
+-- Create or replace a file format named 'json_fileformat' in the schema 'snowpipe_aws.file_formats'
+CREATE OR REPLACE FILE FORMAT snowpipe_aws.file_formats.json_fileformat
+
+-- Specify the file type as 'JSON'
+TYPE = JSON
+
+-- 'STRIP_OUTER_ARRAY' option is set to 'TRUE' to remove the outer brackets ([]) from the JSON data
+STRIP_OUTER_ARRAY = TRUE;
+
+//Step 5 :- Creating a Stage
+
+-- Create or replace a stage named 'aws_s3_json' in the schema 'snowpipe_aws.external_stages'
+CREATE OR REPLACE STAGE snowpipe_aws.external_stages.aws_s3_json
+
+-- Specify the URL of the S3 bucket containing the JSON data
+URL = 's3://snowpipebucket2521/'
+
+-- Set the storage integration to 't_series_table_data', which was created in Step 2
+STORAGE_INTEGRATION = t_series_table_data
+
+-- Use the 'json_fileformat' file format defined in Step 4
+FILE_FORMAT = snowpipe_aws.file_formats.json_fileformat;
+
+//Step 6 :- Create A Snowflake table
+create or replace table aws_snowflake
+(
+Title string,
+CommentCount string ,
+LikeCount string ,
+ViewCount string ,
+publishedAt string,
+ETL_INSERT_BY string ,
+ETL_INSERT_DATE string
+);
+
+
+//Step 7:- Creating a Snowpipe
+create or replace pipe snowpipe_aws.public.t_series_pipe 
+auto_ingest=true -- This flag enables automatic ingestion of data into the Snowpipe
+as 
+copy into snowpipe_aws.public.aws_snowflake -- This statement copies data from the Snowpipe stage to the Snowflake table
+from 
+
+(select $1:Title::string as Title , -- Extracts the 'Title' field from the JSON data and casts it to the STRING data type
+$1:CommentCount::string as CommentCount, 
+$1:LikeCount::string  as LikeCount,
+$1:ViewCount::string  as ViewCount ,
+$1:publishedAt::string  as publishedAt ,
+$1:ETL_INSERT_BY::string  as ETL_INSERT_BY ,
+$1:ETL_INSERT_DATE::string  as ETL_INSERT_DATE 
+
+from @snowpipe_aws.external_stages.aws_s3_json-- Specifies the source of the data, which is the Snowpipe stage 'aws_s3_json'
+);
