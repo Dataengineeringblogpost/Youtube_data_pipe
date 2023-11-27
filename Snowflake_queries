@@ -75,3 +75,25 @@ $1:ETL_INSERT_DATE::string  as ETL_INSERT_DATE
 
 from @snowpipe_aws.external_stages.aws_s3_json-- Specifies the source of the data, which is the Snowpipe stage 'aws_s3_json'
 );
+
+// Step 9:- test your snowpipe
+select * from aws_snowflake;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
